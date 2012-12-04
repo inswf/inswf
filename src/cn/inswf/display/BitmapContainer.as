@@ -1,4 +1,5 @@
 package cn.inswf.display {
+	import flash.display.BitmapData;
 	import flash.display.Bitmap;
 	import flash.display.DisplayObject;
 	import flash.display.Sprite;
@@ -173,7 +174,11 @@ package cn.inswf.display {
 			}
 			if(x<0)x=-x;
 			if(y<0)y=-y;
-			return (target as Bitmap).bitmapData.getPixel32(x, y)>>24 &0xFF;
+			var bm:Bitmap=(target as Bitmap);
+			if(bm==null)return 0;
+			var bmd:BitmapData=bm.bitmapData;
+			if(bmd==null)return 0;
+			return bmd.getPixel32(x, y)>>24 &0xFF;
 		}
 		
 		protected function getTargets(x:Number=0,y:Number=0,threshold:int=-1):Array{

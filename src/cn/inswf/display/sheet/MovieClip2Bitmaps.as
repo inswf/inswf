@@ -25,21 +25,21 @@ package cn.inswf.display.sheet {
 			_matrix=new Matrix();
 		}
 		public function getFrameListAsync(value:MovieClip,delay:uint=40,frameskip:uint=1,data:Object=null):void{
-			if(value==null)return;
-			_mc=value;
-			_data=data;
-			if(_mc.totalFrames==1){
-				_framelist=getFrameList(_mc,delay,frameskip);
+			if(value==null){
 				dispatchEvent(new MovieClip2BitmapEvent(MovieClip2BitmapEvent.COMPLETE,_data));
 				return;
 			}
+			_mc=value;
+			_data=data;
 			_framelist=new FrameDataList();
 			_delay=delay;
-			_mc.addEventListener(Event.ENTER_FRAME, enterframe);
-			_mc.gotoAndPlay(1);
+			_mc.gotoAndStop(1);
+			if(!checkend()){
+				_mc.addEventListener(Event.ENTER_FRAME, enterframe);
+				_mc.play();
+			}
 		}
-
-		private function enterframe(event : Event) : void {
+		private function checkend():Boolean{
 			var c:int=_mc.currentFrame;
 			var t:int=_mc.totalFrames;
 			var framedata:FrameData=getFrameData(_mc);
@@ -48,9 +48,18 @@ package cn.inswf.display.sheet {
 			if(c>=t){
 				_mc.stop();
 				_mc.removeEventListener(Event.ENTER_FRAME, enterframe);
-				_mc=null;
 				dispatchEvent(new MovieClip2BitmapEvent(MovieClip2BitmapEvent.COMPLETE,_data));
+				_mc=null;
+				_framelist=null;
+				_data=null;
+				_matrix=null;
+				_bmd=null;
 			}
+			return c>=t;
+		}
+
+		private function enterframe(event : Event) : void {
+			checkend();
 		}
 		public function getFrameList(value:MovieClip,delay:uint=40,frameskip:uint=1):FrameDataList{
 			//加入比较列表功能。compare

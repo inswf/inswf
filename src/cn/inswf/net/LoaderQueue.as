@@ -1,4 +1,5 @@
 package cn.inswf.net {
+	import flash.utils.Dictionary;
 	import flash.display.LoaderInfo;
 	import flash.display.Shape;
 	import flash.events.Event;
@@ -26,7 +27,11 @@ package cn.inswf.net {
 		private var _count : int;
 		private var _enterFrame : Shape;
 		private var _eventTypeDict:Object;
+		private var _urlDict:Dictionary;
+		private var _autoNext:Boolean;
 		public function LoaderQueue(count : int = 5) {
+			_autoNext=true;
+			_urlDict=new Dictionary();
 			_eventTypeDict={};
 			_loaderList = [];
 			_availableList = [];
@@ -44,6 +49,9 @@ package cn.inswf.net {
 				loader.contentLoaderInfo.addEventListener(SecurityErrorEvent.SECURITY_ERROR, loader_securityError);
 				loader.contentLoaderInfo.addEventListener(ProgressEvent.PROGRESS, loader_progress);
 			}
+		}
+		public function set autoNext(value:Boolean):void{
+			_autoNext=value;
 		}
 
 		override public function addEventListener(type : String, listener : Function, useCapture : Boolean = false, priority : int = 0, useWeakReference : Boolean = false) : void {
@@ -105,6 +113,7 @@ package cn.inswf.net {
 				return;
 			}
 			var request : URLRequest = _requestList.shift();
+			_urlDict[request.url]=loader;
 			var context : LoaderContext = request.requestHeaders.pop();
 			loader.load(request, context);
 		}
@@ -130,28 +139,36 @@ package cn.inswf.net {
 			while (len--) {
 				var eve : Event = _completeList[len];
 				var info : LoaderInfo = eve.currentTarget as LoaderInfo;
-				addAvailable(info.loader as BaseLoader, eve);
+				complete(info.loader as BaseLoader, eve);
 			}
 			_completeList.length = 0;
 		}
 
 		private function loader_ioError(e : IOErrorEvent) : void {
 			var info : LoaderInfo = e.target as LoaderInfo;
-			addAvailable(info.loader as BaseLoader, e);
+			complete(info.loader as BaseLoader, e);
 		}
 
 		private function loader_securityError(e : SecurityErrorEvent) : void {
 			var info : LoaderInfo = e.target as LoaderInfo;
-			addAvailable(info.loader as BaseLoader, e);
+			complete(info.loader as BaseLoader, e);
 		}
 
-		private function addAvailable(loader : BaseLoader, e : Event) : void {
+		private function complete(loader : BaseLoader, e : Event) : void {
 			_count = _requestList.length + ( _loaderList.length - _availableList.length) - 1;
 			_current = loader;
 			_current.getURLRequest().data = null;
 			dispatchEvent(e);
-			_availableList.push(loader);
-			loadnext();
+			if(_autoNext){
+				_availableList.push(loader);
+				loadnext();
+			}else{
+				if((e is IOErrorEvent) || (e is SecurityErrorEvent)){
+					trace("加载失败",e);
+					_availableList.push(loader);
+					loadnext();
+				}
+			}
 		}
 
 		private function loader_progress(e : ProgressEvent) : void {
@@ -165,6 +182,17 @@ package cn.inswf.net {
 		}
 		public function stop():void{
 			_requestList.length=0;
+		}
+		/**
+		 * 释放一个加载器
+		 * 当autoNext为flase时用些方法
+		 */
+		public function releaseLoader(url:String):void{
+			var loader:BaseLoader=_urlDict[url];
+			if(loader){
+				_availableList.push(loader);
+				loadnext();
+			}
 		}
 	}
 }
