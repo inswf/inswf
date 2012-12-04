@@ -1,4 +1,6 @@
 package cn.inswf.display.sheet {
+	import flash.events.Event;
+	import flash.events.EventDispatcher;
 	import cn.inswf.display.image.BitmapProxy;
 	import flash.display.Bitmap;
 	import flash.display.DisplayObject;
@@ -9,13 +11,46 @@ package cn.inswf.display.sheet {
 	/**
 	 * @author li
 	 */
-	public class MovieClip2Bitmaps extends Object {
+	public class MovieClip2Bitmaps extends EventDispatcher {
 		private var _bmd:BitmapData;
 		private var _rect:Rectangle;
 		private var _matrix:Matrix;
+		private var _data:Object;
+		private var _mc:MovieClip;
+		private var _delay:uint;
+		private var _framelist:FrameDataList;
+		
 		public function MovieClip2Bitmaps() {
 			_bmd;
 			_matrix=new Matrix();
+		}
+		public function getFrameListAsync(value:MovieClip,delay:uint=40,frameskip:uint=1,data:Object=null):void{
+			if(value==null)return;
+			_mc=value;
+			_data=data;
+			if(_mc.totalFrames==1){
+				_framelist=getFrameList(_mc,delay,frameskip);
+				dispatchEvent(new MovieClip2BitmapEvent(MovieClip2BitmapEvent.COMPLETE,_data));
+				return;
+			}
+			_framelist=new FrameDataList();
+			_delay=delay;
+			_mc.addEventListener(Event.ENTER_FRAME, enterframe);
+			_mc.gotoAndPlay(1);
+		}
+
+		private function enterframe(event : Event) : void {
+			var c:int=_mc.currentFrame;
+			var t:int=_mc.totalFrames;
+			var framedata:FrameData=getFrameData(_mc);
+			framedata.delay=_delay;
+			_framelist.addFrame(framedata);
+			if(c>=t){
+				_mc.stop();
+				_mc.removeEventListener(Event.ENTER_FRAME, enterframe);
+				_mc=null;
+				dispatchEvent(new MovieClip2BitmapEvent(MovieClip2BitmapEvent.COMPLETE,_data));
+			}
 		}
 		public function getFrameList(value:MovieClip,delay:uint=40,frameskip:uint=1):FrameDataList{
 			//加入比较列表功能。compare
@@ -66,7 +101,15 @@ package cn.inswf.display.sheet {
 			_rect=value.getBounds(value);
 			var x:int=Math.round(_rect.left);
 			var y:int=Math.round(_rect.top);
-			var bmd:BitmapData=new BitmapData(_rect.width, _rect.height,true,0);
+			var w:int=_rect.width;
+			var h:int=_rect.height;
+			if(w==0){
+				w=1;
+			}
+			if(h==0){
+				h=1;
+			}
+			var bmd:BitmapData=new BitmapData(w, h,true,0);
 			_matrix.tx=-x;
 			_matrix.ty=-y;
 			bmd.draw(value,_matrix);
@@ -83,6 +126,10 @@ package cn.inswf.display.sheet {
 			bitmap.bitmapData=framedata.data;
 			bitmap.setRegistration(framedata.x, framedata.y);
 			return bitmap;
+		}
+
+		public function get framelist() : FrameDataList {
+			return _framelist;
 		}
 	}
 }
